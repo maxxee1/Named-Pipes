@@ -1,76 +1,76 @@
-// g++ -std=c++17 cliente.cpp -o cliente
+// g++ -std=c++17 guardian.cpp -o guardian
 #include <bits/stdc++.h>
-#include <fcntl.h>
 #include <sys/stat.h>
+#include <fcntl.h>
 #include <unistd.h>
+#include <signal.h>
 using namespace std;
 
-static inline void print_menu(pid_t pid, const string& name){
-    fprintf(stderr,
-        "=== Chat Cliente (pid=%d, name=%s) ===\n"
-        "bienvenido\n"
-        "para volver a desplegar este menu ingresa /menu\n"
-        "dejar el chat            /leave\n"
-        "-----------------------------\n", pid, name.c_str());
-}
+int main(){
+    string base = "/tmp/sochat";
+    string uplink = base + "/guardian.in";          // clientes -> guardian
+    mkdir(base.c_str(), 0777);
+    mkfifo(uplink.c_str(), 0666);
 
-int main(int argc, char** argv){
-    string base   = "/tmp/sochat";
-    string uplink = base + "/guardian.in";                     // yo -> guardian
+    signal(SIGPIPE, SIG_IGN);                       // no morir si un cliente se fue
+    int keep = open(uplink.c_str(), O_WRONLY | O_NONBLOCK); // evita EOF sin escritores
 
-    string name = (argc >= 2) ? argv[1] : "example";
-    pid_t pid = getpid();
+    ifstream in(uplink);                            // bloquea hasta 1er escritor
+    unordered_map<int,int> outfd;                  // pid -> fd(/guardian_to_<pid>)
+    unordered_map<int,string> names;               // pid -> nombre
 
-    // downlink personal (guardian -> yo): créalo y ábrelo ANTES de registrarte
-    string downlink = base + "/guardian_to_" + to_string(pid);
-    mkfifo(downlink.c_str(), 0666);
-    int fd_in = open(downlink.c_str(), O_RDONLY | O_NONBLOCK);
-
-    int fd_out = open(uplink.c_str(), O_WRONLY);               // requiere guardian leyendo
-    if (fd_out < 0) { perror("open guardian.in"); return 1; }
-
-    // REGISTRO
-    {
-        string reg = "REGISTER " + to_string(pid) + " " + name + "\n";
-        write(fd_out, reg.c_str(), reg.size());
-    }
-
-    print_menu(pid, name);
-
+    cerr << "[guardian] escuchando en " << uplink << "\n";
     string line;
-    while (true) {
-        fd_set rfds; FD_ZERO(&rfds);
-        FD_SET(STDIN_FILENO, &rfds);
-        if (fd_in >= 0) FD_SET(fd_in, &rfds);
-        int maxfd = (fd_in >= 0) ? max(STDIN_FILENO, fd_in) : STDIN_FILENO;
+    while (getline(in, line)) {
+        if (line.rfind("REGISTER ", 0) == 0) {
+            // REGISTER <pid> <name...>
+            string junk, nm; long long pid;
+            stringstream ss(line); ss >> junk >> pid; getline(ss, nm);
+            if (!nm.empty() && nm[0]==' ') nm.erase(0,1);
+            names[(int)pid] = nm.empty()? "anon" : nm;
 
-        if (select(maxfd + 1, &rfds, nullptr, nullptr, nullptr) < 0) break;
-
-        // Mensajes desde el guardian (ACKs / broadcasts)
-        if (fd_in >= 0 && FD_ISSET(fd_in, &rfds)) {
-            char buf[1024];
-            ssize_t n = read(fd_in, buf, sizeof(buf) - 1);
-            if (n > 0) { buf[n] = '\0'; cout << buf << flush; }
+            string down = base + "/guardian_to_" + to_string(pid);   // guardian -> cliente
+            mkfifo(down.c_str(), 0666);
+            int fd = open(down.c_str(), O_WRONLY | O_NONBLOCK);
+            if (fd >= 0) {
+                outfd[(int)pid] = fd;
+                string hi = "[central] hola " + names[(int)pid] + "\n";
+                write(fd, hi.c_str(), hi.size());
+            }
+            continue;
         }
 
-        // Entrada del usuario
-        if (FD_ISSET(STDIN_FILENO, &rfds)) {
-            if (!getline(cin, line)) break;  // EOF
+        if (line.rfind("MSG ", 0) == 0) {
+            // MSG <pid> <texto...>  (texto ya viene en formato "[name@pid]: ...")
+            string junk, text; long long pid;
+            stringstream ss(line); ss >> junk >> pid; getline(ss, text);
+            if (!text.empty() && text[0]==' ') text.erase(0,1);
+            if (text.empty()) continue;
+            if (text.back() != '\n') text.push_back('\n');
 
-            if (line == "/menu") { print_menu(pid, name); continue; }
+            // 1) "Muro": imprime en consola del central
+            cerr << "[muro] " << text;  // muestra exactamente lo que llegó
 
-            if (line == "/leave") {
-                string xao = "MSG " + to_string(pid) + " [" + name + "@" + to_string(pid) + "]: [leave]\n";
-                (void)write(fd_out, xao.c_str(), xao.size());  // avisar y salir
-                break;
+            // 2) ACK inmediato al emisor (solo a ese pid)
+            auto itSender = outfd.find((int)pid);
+            if (itSender != outfd.end()) {
+                string ack = "[central] recibido\n";
+                write(itSender->second, ack.c_str(), ack.size());
             }
 
-            string msg = "MSG " + to_string(pid) + " [" + name + "@" + to_string(pid) + "]: " + line + "\n";
-            (void)write(fd_out, msg.c_str(), msg.size());
+            // 3) Broadcast del mensaje a todos los demás (opcional: excluir emisor)
+            for (auto it = outfd.begin(); it != outfd.end(); ) {
+                if (it->first == (int)pid) { ++it; continue; } // no eco al emisor
+                if (write(it->second, text.c_str(), text.size()) < 0) {
+                    close(it->second); it = outfd.erase(it);   // cliente se fue
+                } else ++it;
+            }
+            continue;
         }
+        // otras líneas se ignoran (p.ej., "reportar ...")
     }
 
-    if (fd_in >= 0) { close(fd_in); unlink(downlink.c_str()); }
-    close(fd_out);
+    for (auto &kv : outfd) close(kv.second);
+    if (keep >= 0) close(keep);
     return 0;
 }
