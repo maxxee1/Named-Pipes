@@ -104,8 +104,8 @@ Cada proceso se debe ejecutar en una **terminal distinta**. El orden sugerido es
 4. Alice envía: `hola a todos` → Bob y Carlos reciben el mensaje y el muro.  
 5. Bob reporta a Carlos diez veces: `reportar <pidCarlos>` → guardian detecta los 10 reportes y envía orden de KILL → Carlos es expulsado automáticamente.  
 6. Alice escribe `dup` → ahora hay Alice y Alice_dup conectados como dos clientes distintos.
-7. Bob envía: `qienes estan?` → Alice recibe 2 veces ese mensaje en su terminal ya que se duplico
-8. La termina de Alice responde: `yo` → Debido a que comparte FIFO con su clon uno de los 2 procesos al azar es el que manda ese mensaje
+7. Bob envía: `qienes estan?` → Alice recibe ese mensaje en su terminal
+8. La termina de Alice responde: `yo` → Debido a que comparte FIFO con su clon, uno de los 2 procesos al azar es el que manda ese mensaje
 
 ---
 
