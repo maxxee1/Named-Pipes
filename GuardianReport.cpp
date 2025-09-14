@@ -36,6 +36,7 @@ int main(){
         return 1;
     }
 
+    /******  MANEJO DE REPORTES  ******/
     map<int,int> cantReportes;
     string buf;
     buf.reserve(4096);
