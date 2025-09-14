@@ -1,2 +1,0 @@
-# Named-Pipes
-(Operating Systems)
