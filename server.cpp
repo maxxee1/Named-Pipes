@@ -29,10 +29,11 @@ static int abrirFifoEscritura(const string &path, int tries=30, int sleep_ms=50)
             usleep(sleep_ms*1000);
             continue;
         }
-        break; // otro error
+        break;
     }
     return -1;
 }
+
 
 int main(){
     ios::sync_with_stdio(false);
