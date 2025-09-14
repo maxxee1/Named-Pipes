@@ -29,35 +29,38 @@ int main(){
         perror("[guardian] open from_srv");
         return 1;
     }
-    int salidaServidor = open(palServer.c_str(),   O_WRONLY);
+    int salidaServidor = open(palServer.c_str(), O_WRONLY);
     
     if(salidaServidor < 0) {
         perror("[guardian] open to_srv");
         return 1;
     }
 
-    unordered_map<int,int> strikes;
-    string buf; buf.reserve(4096);
+    map<int,int> cantReportes;
+    string buf;
+    buf.reserve(4096);
     char tmp[1024];
 
-    auto flush_lines = [&](string &acc){
+    auto flush_lines = [&](string &acc) {
         size_t pos;
-        while((pos = acc.find('\n')) != string::npos){
-            string line = acc.substr(0,pos);
+
+        while((pos = acc.find('\n')) != string::npos) {
+            string linea = acc.substr(0,pos);
             acc.erase(0,pos+1);
 
             // Esperamos: REPORT|rep|tar
-            if(line.rfind("REPORT|",0)==0) {
-                vector<string> parts; string t; stringstream ss(line);
+            if(linea.rfind("REPORT|",0)==0) {
+                vector<string> parts; string t; stringstream ss(linea);
+
                 while(getline(ss,t,'|')) parts.push_back(t);
 
                 if(parts.size()==3) {
-                    int target = atoi(parts[2].c_str());
+                    int objetivo = atoi(parts[2].c_str());
 
-                    if(++strikes[target] > 9) {
-                        string killMsg = "KILL|guardian|" + to_string(target) + "\n";
+                    if(++cantReportes[objetivo] > 9) {
+                        string killMsg = "KILL|guardian|" + to_string(objetivo) + "\n";
                         (void)write(salidaServidor, killMsg.c_str(), killMsg.size());
-                        strikes.erase(target); // reset para ese pid
+                        cantReportes.erase(objetivo); // reset para ese pid
                     }
                 }
             }
