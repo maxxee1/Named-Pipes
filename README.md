@@ -17,9 +17,10 @@ Solorza_Maximiliano_Soto_Benjamin/
 ---
 
 ## ⚙️ Compilación
-Abrir una terminal en la carpeta con los archivos (`cd Solorza_Maximiliano_Soto_Benjamin`) y ejecutar:
+Abrir una terminal y ejecutar:
 
 ```bash
+cd /path_donde_tenga_la_carpeta/SolorzaMaximiliano_SotoBenjamin
 g++ client.cpp -o client
 g++ server.cpp -o server
 g++ GuardianReport.cpp -o guardian
@@ -83,19 +84,11 @@ Cada proceso se debe ejecutar en una **terminal distinta**. El orden sugerido es
    ./client "Bob"
    ./client "Carlos"
    ```
-4. Alice envía: `hola a todos` → Bob y Carlos reciben el mensaje en su muro.  
+4. Alice envía: `hola a todos` → Bob y Carlos reciben el mensaje y el muro.  
 5. Bob reporta a Carlos diez veces: `reportar <pidCarlos>` → guardian detecta los 10 reportes y envía orden de KILL → Carlos es expulsado automáticamente.  
 6. Alice escribe `dup` → ahora hay Alice y Alice_dup conectados como dos clientes distintos.
-
----
-
-## 📝 Algoritmo de planificación
-Este sistema **no utiliza hilos ni semáforos** (prohibidos por enunciado).  
-La planificación de la entrada/salida se realiza mediante el **sistema de multiplexación `select()`**, que permite al servidor esperar simultáneamente por:  
-- Mensajes entrantes de los clientes.  
-- Señales/órdenes del guardian.  
-
-De esta manera, el servidor maneja múltiples fuentes de información en un solo proceso central, sin bloquearse ni necesitar concurrencia explícita.
+7. Bob envía: `qienes estan?` → Alice recibe 2 veces ese mensaje en su terminal ya que se duplico
+8. La termina de Alice responde: `yo` → Debido a que comparte FIFO con su clon uno de los 2 procesos al azar es el que manda ese mensaje
 
 ---
 
