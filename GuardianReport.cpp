@@ -15,23 +15,23 @@ int main(){
     const string base = "/tmp/sochat";
 
     /*********  SERVIDOR -> GUARDIAN  *********/
-    const string from_srv = base + "/srv_to_guard.fifo";
+    const string desdeServer = base + "/srv_to_guard.fifo";
 
     /*********  GUARDIAN -> SERVIDOR  *********/
-    const string to_srv   = base + "/guard_to_srv.fifo";
+    const string palServer   = base + "/guard_to_srv.fifo";
     mkdir(base.c_str(), 0777);
-    mkfifo(from_srv.c_str(), 0666);
-    mkfifo(to_srv.c_str(),   0666);
+    mkfifo(desdeServer.c_str(), 0666);
+    mkfifo(palServer.c_str(),   0666);
 
-    int fd_in  = open(from_srv.c_str(), O_RDONLY);
+    int entradaServidor  = open(desdeServer.c_str(), O_RDONLY);
 
-    if(fd_in  < 0) {
+    if(entradaServidor  < 0) {
         perror("[guardian] open from_srv");
         return 1;
     }
-    int fd_out = open(to_srv.c_str(),   O_WRONLY);
+    int salidaServidor = open(palServer.c_str(),   O_WRONLY);
     
-    if(fd_out < 0) {
+    if(salidaServidor < 0) {
         perror("[guardian] open to_srv");
         return 1;
     }
@@ -56,7 +56,7 @@ int main(){
 
                     if(++strikes[target] > 9) {
                         string killMsg = "KILL|guardian|" + to_string(target) + "\n";
-                        (void)write(fd_out, killMsg.c_str(), killMsg.size());
+                        (void)write(salidaServidor, killMsg.c_str(), killMsg.size());
                         strikes.erase(target); // reset para ese pid
                     }
                 }
@@ -65,15 +65,17 @@ int main(){
     };
 
     while(true) {
-        ssize_t n = read(fd_in, tmp, sizeof(tmp));
+        ssize_t n = read(entradaServidor, tmp, sizeof(tmp));
         if(n > 0) {
             buf.append(tmp, tmp+n);
             flush_lines(buf);
         }
         else if(n == 0) {
-            close(fd_in);
-            fd_in = open(from_srv.c_str(), O_RDONLY);
-            if(fd_in < 0){ perror("[guardian] reopen from_srv");
+            close(entradaServidor);
+            entradaServidor = open(desdeServer.c_str(), O_RDONLY);
+
+            if(entradaServidor < 0) {
+                perror("[guardian] reopen from_srv");
                 break;
             }
         }
@@ -84,6 +86,7 @@ int main(){
         }
     }
 
-    close(fd_in); close(fd_out);
+    close(entradaServidor);
+    close(salidaServidor);
     return 0;
 }
