@@ -42,26 +42,28 @@ int main(){
     buf.reserve(4096);
     char tmp[1024];
 
-    auto flush_lines = [&](string &acc) {
-        size_t pos;
+    auto procesarLinea = [&](string &acumulador) {
+        size_t posicion;
 
-        while((pos = acc.find('\n')) != string::npos) {
-            string linea = acc.substr(0,pos);
-            acc.erase(0,pos+1);
+        while((posicion = acumulador.find('\n')) != string::npos) {
+            string linea = acumulador.substr(0,posicion);
+            acumulador.erase(0,posicion+1);
 
             // Esperamos: REPORT|rep|tar
             if(linea.rfind("REPORT|",0)==0) {
-                vector<string> parts; string t; stringstream ss(linea);
+                vector<string> partes;
+                string token;
+                stringstream flujo(linea);
 
-                while(getline(ss,t,'|')) parts.push_back(t);
+                while(getline(flujo,token,'|')) partes.push_back(token);
 
-                if(parts.size()==3) {
-                    int objetivo = atoi(parts[2].c_str());
+                if(partes.size()==3) {
+                    int objetivo = atoi(partes[2].c_str());
 
-                    if(++cantReportes[objetivo] > 9) {
-                        string killMsg = "KILL|guardian|" + to_string(objetivo) + "\n";
-                        (void)write(salidaServidor, killMsg.c_str(), killMsg.size());
-                        cantReportes.erase(objetivo); // reset para ese pid
+                    if(++cantReportes[objetivo] >= 10) {
+                        string ordenKill = "KILL|guardian|" + to_string(objetivo) + "\n";
+                        (void)write(salidaServidor, ordenKill.c_str(), ordenKill.size());
+                        cantReportes.erase(objetivo);
                     }
                 }
             }
@@ -72,7 +74,7 @@ int main(){
         ssize_t n = read(entradaServidor, tmp, sizeof(tmp));
         if(n > 0) {
             buf.append(tmp, tmp+n);
-            flush_lines(buf);
+            procesarLinea(buf);
         }
         else if(n == 0) {
             close(entradaServidor);
