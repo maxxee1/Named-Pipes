@@ -12,11 +12,13 @@ Solorza_Maximiliano_Soto_Benjamin/
 │── client.cpp
 │── server.cpp
 │── GuardianReport.cpp
+│── Makefile
+│── README.md
 ```
 
 ---
 
-## ⚙️ Compilación
+## ⚙️ Compilación Manual
 Abrir una terminal y ejecutar:
 
 ```bash
@@ -30,6 +32,21 @@ Esto generará tres binarios ejecutables:
 - `client`  
 - `server`  
 - `guardian`  
+
+
+## ⭐ Compilación Makefile
+
+Si se prefiere, se puede usar el **Makefile** incluido para compilar automáticamente todos los binarios con un solo comando:
+
+```bash
+make
+```
+Esto genera server, guardian y client en la misma carpeta.
+
+Para limpiar los binarios:
+```bash
+make clean
+```
 
 ---
 
